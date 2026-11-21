@@ -12,6 +12,7 @@ export const ScreenRequestSchema = z.object({
     .min(50, "CV is too short (minimum 50 characters).")
     .max(30000, "CV is too long."),
   candidateName: z.string().trim().max(120).optional(),
+  jobTitle: z.string().trim().max(200).optional(), // shown in Slack and Google Sheets
   candidateEmail: z.string().trim().email("Invalid email.").optional(),
   notify: z.boolean().default(true), // send to Slack / Sheets?
 });

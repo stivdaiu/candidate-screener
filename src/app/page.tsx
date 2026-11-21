@@ -85,6 +85,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           candidateName: candidateName.trim() || undefined,
+          jobTitle: SAVED_JOBS.find((j) => j.id === jobId)?.title,
           jobDescription,
           cvText,
         }),

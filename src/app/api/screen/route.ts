@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ScreenRequestSchema, type ScreenResponse } from "@/lib/schema";
 import { screenCandidate } from "@/lib/screen";
+import { notifyTeam } from "@/lib/integrations";
 
 export const maxDuration = 60; // seconds allowed on Vercel
 
@@ -30,21 +31,34 @@ export async function POST(request: Request) {
   }
   const input = parsed.data;
 
-  // 3. Screen the candidate with AI
   try {
+    // 3. Screen the candidate with AI (or the fallback)
     const { result, engine, warnings } = await screenCandidate(
       input.jobDescription,
       input.cvText,
     );
     if (input.candidateName) result.candidateName = input.candidateName;
 
+    // 4. Notify the team in Slack and Google Sheets (unless the caller turned it off)
+    const notify = input.notify
+      ? await notifyTeam({
+          result,
+          engine,
+          jobTitle: input.jobTitle,
+          candidateEmail: input.candidateEmail,
+        })
+      : {
+          notifications: { slack: "skipped", sheets: "skipped" } as const,
+          warnings: [],
+        };
+
     const response: ScreenResponse = {
       result,
       meta: {
         engine,
         durationMs: Date.now() - startedAt,
-        notifications: { slack: "skipped", sheets: "skipped" }, // Step 4
-        warnings,
+        notifications: notify.notifications,
+        warnings: [...warnings, ...notify.warnings],
       },
     };
     return NextResponse.json(response);
@@ -62,6 +76,6 @@ export function GET() {
   return NextResponse.json({
     status: "ok",
     usage:
-      "POST JSON { jobDescription, cvText, candidateName?, candidateEmail?, notify? }",
+      "POST JSON { jobDescription, cvText, candidateName?, candidateEmail?, jobTitle?, notify? }",
   });
 }
