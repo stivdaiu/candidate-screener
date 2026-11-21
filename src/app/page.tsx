@@ -72,6 +72,15 @@ export default function Home() {
       setUploading(false);
     }
   }
+  function clearForm() {
+    setCandidateName("");
+    setJobId("");
+    setJobDescription("");
+    setCvText("");
+    setFileInfo(null);
+    setError(null);
+    setData(null);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -214,13 +223,23 @@ export default function Home() {
           </div>
         </div>
 
-        <button
-          type="submit"
-          disabled={loading || uploading}
-          className="rounded-md bg-slate-900 px-5 py-2.5 font-medium text-white disabled:opacity-50"
-        >
-          {loading ? "Screening..." : "Screen candidate"}
-        </button>
+        <div className="flex gap-3">
+          <button
+            type="submit"
+            disabled={loading || uploading}
+            className="rounded-md bg-slate-900 px-5 py-2.5 font-medium text-white disabled:opacity-50"
+          >
+            {loading ? "Screening..." : "Screen candidate"}
+          </button>
+          <button
+            type="button"
+            onClick={clearForm}
+            disabled={loading || uploading}
+            className="rounded-md border border-slate-300 px-5 py-2.5 font-medium hover:bg-slate-50 disabled:opacity-50"
+          >
+            Clear
+          </button>
+        </div>
       </form>
 
       {error && (
