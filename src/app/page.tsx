@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import type { ScreenResponse } from "@/lib/schema";
-import { SAMPLE_CV, SAMPLE_JOB } from "@/lib/samples";
+import { SAMPLE_CV } from "@/lib/samples";
+import { SAVED_JOBS } from "@/lib/jobs";
 
 const BADGE_STYLES: Record<string, string> = {
   shortlist: "bg-green-100 text-green-800",
@@ -18,17 +19,58 @@ function scoreColor(score: number) {
 
 export default function Home() {
   const [candidateName, setCandidateName] = useState("");
+  const [jobId, setJobId] = useState(""); // "" = custom job
   const [jobDescription, setJobDescription] = useState("");
   const [cvText, setCvText] = useState("");
+  const [fileInfo, setFileInfo] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<ScreenResponse | null>(null);
 
+  function selectJob(id: string) {
+    setJobId(id);
+    const job = SAVED_JOBS.find((j) => j.id === id);
+    setJobDescription(job ? job.description : "");
+  }
+
   function loadSample() {
     setCandidateName("Maria Rossi");
-    setJobDescription(SAMPLE_JOB);
+    selectJob(SAVED_JOBS[0].id);
     setCvText(SAMPLE_CV);
+    setFileInfo(null);
     setError(null);
+  }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // lets the user upload the same file again
+    if (!file) return;
+
+    setUploading(true);
+    setError(null);
+    setFileInfo(null);
+
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/extract-cv", {
+        method: "POST",
+        body: form,
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(json?.error ?? `Upload failed (HTTP ${res.status})`);
+      }
+      setCvText(json.text);
+      setFileInfo(
+        `Loaded ${file.name} (${json.pages} page${json.pages === 1 ? "" : "s"})`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setUploading(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -64,7 +106,7 @@ export default function Home() {
       <header className="mb-8">
         <h1 className="text-3xl font-semibold">Candidate Screener</h1>
         <p className="mt-2 text-slate-600">
-          Paste a job description and a CV. AI scores the match, lists matched
+          Pick a job, upload or paste a CV. AI scores the match, lists matched
           and missing skills, suggests interview questions, and notifies the
           recruiting team in Slack and Google Sheets.
         </p>
@@ -72,17 +114,18 @@ export default function Home() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="flex flex-wrap items-end gap-3">
-          <label className="flex-1">
-            <span className="text-sm font-medium">
+          <div className="flex-1">
+            <label htmlFor="candidateName" className="text-sm font-medium">
               Candidate name (optional)
-            </span>
+            </label>
             <input
+              id="candidateName"
               value={candidateName}
               onChange={(e) => setCandidateName(e.target.value)}
               className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
               placeholder="e.g. Maria Rossi"
             />
-          </label>
+          </div>
           <button
             type="button"
             onClick={loadSample}
@@ -93,33 +136,86 @@ export default function Home() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <label>
-            <span className="text-sm font-medium">Job description</span>
+          {/* Job column */}
+          <div>
+            <div className="flex items-center justify-between gap-2">
+              <label htmlFor="jobDescription" className="text-sm font-medium">
+                Job description
+              </label>
+              <select
+                value={jobId}
+                onChange={(e) => selectJob(e.target.value)}
+                className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+                aria-label="Saved jobs"
+              >
+                <option value="">Custom job (paste below)</option>
+                {SAVED_JOBS.map((job) => (
+                  <option key={job.id} value={job.id}>
+                    {job.title}
+                  </option>
+                ))}
+              </select>
+            </div>
             <textarea
+              id="jobDescription"
               value={jobDescription}
-              onChange={(e) => setJobDescription(e.target.value)}
+              onChange={(e) => {
+                setJobDescription(e.target.value);
+                setJobId(""); // edited by hand, so it's now a custom job
+              }}
               rows={14}
               className="mt-1 w-full rounded-md border border-slate-300 p-3 font-mono text-sm"
-              placeholder="Paste the job description..."
+              placeholder="Pick a saved job or paste a job description..."
               required
             />
-          </label>
-          <label>
-            <span className="text-sm font-medium">Candidate CV</span>
+          </div>
+
+          {/* CV column */}
+          <div>
+            <div className="flex items-center justify-between gap-2">
+              <label htmlFor="cvText" className="text-sm font-medium">
+                Candidate CV
+              </label>
+              <label
+                className={`cursor-pointer rounded-md border border-slate-300 px-2 py-1 text-sm hover:bg-slate-50 ${
+                  uploading ? "pointer-events-none opacity-50" : ""
+                }`}
+              >
+                {uploading ? "Reading PDF..." : "Upload PDF"}
+                <input
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  onChange={handleFileUpload}
+                  disabled={uploading}
+                  className="hidden"
+                />
+              </label>
+            </div>
             <textarea
+              id="cvText"
               value={cvText}
               onChange={(e) => setCvText(e.target.value)}
               rows={14}
               className="mt-1 w-full rounded-md border border-slate-300 p-3 font-mono text-sm"
-              placeholder="Paste the CV text..."
+              placeholder="Upload a PDF or paste the CV text..."
               required
             />
-          </label>
+            <p className="mt-1 text-xs text-slate-500">
+              {fileInfo ?? (
+                <>
+                  No CV handy?{" "}
+                  <a href="/sample-cv.pdf" download className="underline">
+                    Download a sample CV (PDF)
+                  </a>
+                </>
+              )}
+            </p>
+          </div>
         </div>
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || uploading}
           className="rounded-md bg-slate-900 px-5 py-2.5 font-medium text-white disabled:opacity-50"
         >
           {loading ? "Screening..." : "Screen candidate"}
