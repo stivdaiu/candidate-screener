@@ -8,7 +8,7 @@ Built as part of a technical assessment for an **AI Operations Specialist** role
 | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | 🌐 **Live app (recruiters)**                        | https://candidate-screener-three.vercel.app                                                          |
 | 📝 **Live application form (applicants, n8n)**      | https://stivdaiu.app.n8n.cloud/form/apply _(n8n Cloud trial, active until 6 December 2026)_          |
-| 🎥 **Demo video**                                   | _add link_                                                                                           |
+| 🎥 **Demo video**                                   | https://drive.google.com/file/d/1590QYErYBY0AsUJbK_IV5c9nkNIxHEBD/view?usp=sharing                   |
 | 📊 **Candidate tracker (Google Sheets, view-only)** | https://docs.google.com/spreadsheets/d/1AZnUZCc7Zyrr-y77H6dLC_4S08bF0hoim3KaKoOODQI/edit?usp=sharing |
 
 ### Try it in 30 seconds
@@ -51,7 +51,7 @@ flowchart LR
 - **Application form (n8n):** https://stivdaiu.app.n8n.cloud/form/apply
 - **Candidate tracker (Google Sheets):** https://docs.google.com/spreadsheets/d/1AZnUZCc7Zyrr-y77H6dLC_4S08bF0hoim3KaKoOODQI/edit?usp=sharing
 - **Source code:** this repository
-- **Demo video:** _add link_
+- **Demo video:** https://drive.google.com/file/d/1590QYErYBY0AsUJbK_IV5c9nkNIxHEBD/view?usp=sharing
 
 ## 2. AI tools used
 
