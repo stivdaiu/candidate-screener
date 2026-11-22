@@ -3,6 +3,8 @@ import { keywordScreen } from "@/lib/fallback";
 import { recommendationFromScore } from "@/lib/recommendation";
 import { ScreenRequestSchema } from "@/lib/schema";
 import { SAMPLE_CV, SAMPLE_JOB } from "@/lib/samples";
+import { findSavedJob } from "@/lib/jobs";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 describe("recommendationFromScore", () => {
   it("applies the shortlist / maybe / reject thresholds", () => {
@@ -68,5 +70,49 @@ describe("ScreenRequestSchema", () => {
     });
     expect(parsed.success).toBe(true);
     expect(parsed.success && parsed.data.notify).toBe(true);
+  });
+});
+describe("saved jobs", () => {
+  it("accepts a jobId instead of a jobDescription", () => {
+    const parsed = ScreenRequestSchema.safeParse({
+      jobId: "ai-operations-specialist",
+      cvText: SAMPLE_CV,
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it("rejects a request with neither jobDescription nor jobId", () => {
+    const parsed = ScreenRequestSchema.safeParse({ cvText: SAMPLE_CV });
+    expect(parsed.success).toBe(false);
+  });
+
+  it("finds a saved job by id or by title", () => {
+    expect(findSavedJob("ai-operations-specialist")?.title).toBe(
+      "AI Operations Specialist",
+    );
+    expect(findSavedJob("Recruitment Coordinator")?.id).toBe(
+      "recruitment-coordinator",
+    );
+    expect(findSavedJob("unknown-job")).toBeUndefined();
+  });
+});
+describe("checkRateLimit", () => {
+  it("allows up to the limit, then blocks until the hour has passed", () => {
+    const start = 1_000_000;
+    for (let i = 0; i < 3; i++) {
+      expect(checkRateLimit("test-visitor", 3, start + i).allowed).toBe(true);
+    }
+    const blocked = checkRateLimit("test-visitor", 3, start + 10);
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.retryAfterSeconds).toBeGreaterThan(0);
+    expect(
+      checkRateLimit("test-visitor", 3, start + 60 * 60 * 1000 + 1).allowed,
+    ).toBe(true);
+  });
+
+  it("is turned off when the limit is 0", () => {
+    for (let i = 0; i < 20; i++) {
+      expect(checkRateLimit("dev-visitor", 0).allowed).toBe(true);
+    }
   });
 });

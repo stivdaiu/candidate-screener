@@ -53,3 +53,11 @@ Requirements
 - Able to work US business hours`,
   },
 ];
+
+// Finds a saved job by its id (e.g. "ai-operations-specialist") or its exact title.
+export function findSavedJob(idOrTitle: string): SavedJob | undefined {
+  const key = idOrTitle.trim().toLowerCase();
+  return SAVED_JOBS.find(
+    (job) => job.id === key || job.title.toLowerCase() === key,
+  );
+}

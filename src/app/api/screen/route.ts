@@ -2,11 +2,27 @@ import { NextResponse } from "next/server";
 import { ScreenRequestSchema, type ScreenResponse } from "@/lib/schema";
 import { screenCandidate } from "@/lib/screen";
 import { notifyTeam } from "@/lib/integrations";
+import { findSavedJob } from "@/lib/jobs";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export const maxDuration = 60; // seconds allowed on Vercel
 
 export async function POST(request: Request) {
   const startedAt = Date.now();
+  // 0. Limit how often one visitor can screen (protects API costs on the public demo)
+  const limit = checkRateLimit(`screen:${getClientIp(request)}`);
+  if (!limit.allowed) {
+    const minutes = Math.ceil(limit.retryAfterSeconds / 60);
+    return NextResponse.json(
+      {
+        error: `Too many screenings. Please try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`,
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(limit.retryAfterSeconds) },
+      },
+    );
+  }
 
   // 1. Read the JSON body
   let body: unknown;
@@ -31,20 +47,41 @@ export async function POST(request: Request) {
   }
   const input = parsed.data;
 
+  // 3. Work out the job: a saved job (by id) or the description that was sent
+  let jobDescription = input.jobDescription;
+  let jobTitle = input.jobTitle;
+  if (input.jobId) {
+    const job = findSavedJob(input.jobId);
+    if (!job) {
+      return NextResponse.json(
+        { error: `jobId: unknown job "${input.jobId}".` },
+        { status: 400 },
+      );
+    }
+    jobDescription ??= job.description;
+    jobTitle ??= job.title;
+  }
+  if (!jobDescription) {
+    return NextResponse.json(
+      { error: "jobDescription: missing." },
+      { status: 400 },
+    );
+  }
+
   try {
-    // 3. Screen the candidate with AI (or the fallback)
+    // 4. Screen the candidate with AI (or the fallback)
     const { result, engine, warnings } = await screenCandidate(
-      input.jobDescription,
+      jobDescription,
       input.cvText,
     );
     if (input.candidateName) result.candidateName = input.candidateName;
 
-    // 4. Notify the team in Slack and Google Sheets (unless the caller turned it off)
+    // 5. Notify the team in Slack and Google Sheets (unless the caller turned it off)
     const notify = input.notify
       ? await notifyTeam({
           result,
           engine,
-          jobTitle: input.jobTitle,
+          jobTitle,
           candidateEmail: input.candidateEmail,
         })
       : {
@@ -76,6 +113,6 @@ export function GET() {
   return NextResponse.json({
     status: "ok",
     usage:
-      "POST JSON { jobDescription, cvText, candidateName?, candidateEmail?, jobTitle?, notify? }",
+      "POST JSON { jobDescription or jobId, cvText, candidateName?, candidateEmail?, jobTitle?, notify? }",
   });
 }

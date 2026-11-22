@@ -1,21 +1,29 @@
 import { z } from "zod";
 
-export const ScreenRequestSchema = z.object({
-  jobDescription: z
-    .string()
-    .trim()
-    .min(50, "Job description is too short (minimum 50 characters).")
-    .max(20000, "Job description is too long."),
-  cvText: z
-    .string()
-    .trim()
-    .min(50, "CV is too short (minimum 50 characters).")
-    .max(30000, "CV is too long."),
-  candidateName: z.string().trim().max(120).optional(),
-  jobTitle: z.string().trim().max(200).optional(), // shown in Slack and Google Sheets
-  candidateEmail: z.string().trim().email("Invalid email.").optional(),
-  notify: z.boolean().default(true), // send to Slack / Sheets?
-});
+export const ScreenRequestSchema = z
+  .object({
+    // Either send the full job description, or the id of a saved job (see src/lib/jobs.ts)
+    jobDescription: z
+      .string()
+      .trim()
+      .min(50, "Job description is too short (minimum 50 characters).")
+      .max(20000, "Job description is too long.")
+      .optional(),
+    jobId: z.string().trim().max(100).optional(),
+    cvText: z
+      .string()
+      .trim()
+      .min(50, "CV is too short (minimum 50 characters).")
+      .max(30000, "CV is too long."),
+    candidateName: z.string().trim().max(120).optional(),
+    jobTitle: z.string().trim().max(200).optional(), // shown in Slack and Google Sheets
+    candidateEmail: z.string().trim().email("Invalid email.").optional(),
+    notify: z.boolean().default(true), // send to Slack / Sheets?
+  })
+  .refine((data) => data.jobDescription || data.jobId, {
+    message: "Send either jobDescription or jobId.",
+    path: ["jobDescription"],
+  });
 export type ScreenRequest = z.infer<typeof ScreenRequestSchema>;
 
 export const ScreeningResultSchema = z.object({
