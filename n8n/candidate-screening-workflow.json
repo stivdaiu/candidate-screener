@@ -1,0 +1,137 @@
+{
+  "name": "Candidate Screening Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Candidate Screening Automation\n\n1. **Application form**: the applicant enters name, email, job and uploads a CV (PDF).\n2. **Read CV text**: turns the PDF into text.\n3. **Screen with AI**: sends it to the Candidate Screener API. The API scores the CV with AI and notifies the team in Slack + Google Sheets.\n\nBefore using: open **Screen with AI** and set the URL to your app (e.g. `https://your-app.vercel.app/api/screen`).",
+        "height": 260,
+        "width": 520
+      },
+      "id": "6c0b8f0e-1a4f-4a43-9a52-2f7f0d6e0a01",
+      "name": "About this workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-60, -320]
+    },
+    {
+      "parameters": {
+        "formTitle": "Apply for a job",
+        "formDescription": "Fill in your details and upload your CV as a PDF. We'll get back to you soon.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Full name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Email",
+              "fieldType": "email",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Job",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "AI Operations Specialist"
+                  },
+                  {
+                    "option": "Recruitment Coordinator"
+                  },
+                  {
+                    "option": "Customer Support Team Lead"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "CV",
+              "fieldType": "file",
+              "multipleFiles": false,
+              "acceptFileTypes": ".pdf",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "path": "apply",
+          "respondWithOptions": {
+            "values": {
+              "respondWith": "text",
+              "formSubmittedText": "Thanks for applying! We have received your CV and will be in touch soon."
+            }
+          }
+        }
+      },
+      "id": "0f5d2c1e-7b3a-4e8b-9d6a-6a1c2b3d4e01",
+      "name": "Application form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [0, 0],
+      "webhookId": "3b1f6a52-2c7d-4d0e-8e1a-9c4b5d6e7f01"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "CV",
+        "options": {}
+      },
+      "id": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c01",
+      "name": "Read CV text",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://candidate-screener-three.vercel.app/api/screen",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ candidateName: $('Application form').item.json['Full name'], candidateEmail: $('Application form').item.json['Email'], jobId: $('Application form').item.json['Job'], cvText: $json.text }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d01",
+      "name": "Screen with AI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    }
+  ],
+  "connections": {
+    "Application form": {
+      "main": [
+        [
+          {
+            "node": "Read CV text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read CV text": {
+      "main": [
+        [
+          {
+            "node": "Screen with AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false
+}
